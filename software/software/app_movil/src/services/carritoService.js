@@ -46,3 +46,55 @@ function normalizeItem(item) {
         subtotal: precio * cantidad,
     };
 }
+
+//  calcula el resumen del carrito: items normalizados, cantidad total y monto total
+function summarize(items) { 
+    const normalized = items.map(normalizeItem);
+    const totalItems = normalized.reduce((acc, item) => acc + item.cantidad, 0);
+    const total = normalized.reduce((acc, item) => acc + item.subtotal, 0);
+
+    return { normalized, totalItems, totalMonto };
+}  
+
+const carritoservice = {
+
+    // obtiene el carrito desde el backend o desde storage segun la sesion 
+    getCarrito: async (isAuthenticated) => {
+        if (isAuthenticated) {
+            const response = await apiClient.get ('/carrito');
+            const payload = response.data?.data || response.data || {};
+            const carrito = payload.carrito || {};
+            const items = carrito.Items || carrito.items || [];
+
+            return summarize(items);
+
+        }
+
+        const localItems = await readLocalCart();
+        return summarize(localItems);
+    },
+
+    // agrega un producto al carrito correspondiente 
+    addToCarrito: async ({ isAuthenticated, producto, cantidad = 1}) => {
+
+        if (isAuthenticated) {
+            await apiClient.post('/cliente/carrito', { 
+                productoId: producto.id, cantidad, 
+             });
+
+             return; 
+        }
+
+        const localItems = await readLocalCart();
+        const existing = localItems.find((item) => Number (item.productoId) === Number(producto.id));
+
+        if (existing) {
+            existing.cantidad += cantidad;
+        } else {
+            localItems.push ({
+                id: Date.now(),
+            })
+        }
+
+    }
+}
