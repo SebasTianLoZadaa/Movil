@@ -19,7 +19,7 @@ export function CarritoProvider({ children })  {
     const { isAuthenticated, isLoadingSession } = useAuth ();
 
     // Estado del carrito
-    const [carrito,setItems] = useState ([]); // lista de productos en el carrito
+    const [items,setItems] = useState ([]); // lista de productos en el carrito
     const [totalItems,setTotalItems] = useState ([0]); // suma de cantidades
     const [total,setTotal] = useState ([0]); // precio total
     const [loading,setLoading] = useState (true); // true mientras carga el carrito
@@ -116,6 +116,19 @@ const cambiarCantidad = useCallback(
 );
 
 /**
+ * Eliminar item del carrito porsu id 
+ */
+
+const eliminarItem = useCallback (
+    async (itemId) => {
+        await carritoService.removeItem({
+            isAuthenticated, itemId
+        });
+    },
+    [hydrate, isAuthenticated]
+);
+
+/**
  * vaciar carrito
  * elimina todos los items de carrito de una vez
  */
@@ -123,8 +136,42 @@ const vaciarCarrito = useCallback(async () => {
     await carritoService.clearCarrito
     (isAuthenticated); 
     await hydrate();
-}, [hydrate, isAuthenticated]); 
+}, [hydrate, isAuthenticated]);
 
+/** useMemo eita recrear el objeto en cada render innecesario
+ */
 
+const value = useMemo(
+    () => ({
+        items, // array de items normalizados 
+        totalItems, // cantidad total de unidades 
+        total, // precio total del carrito
+        loading, // true mientras se carga el carrito
+        refreshCarrito: hydrate, // permite forzar una recarga manual 
+        agregarProducto, // funcion para agregar producto al carrito
+        cambiarCantidad, // funcion para cambiar la cantidad de un item
+        eliminarItem, // funcion para eliminar un item del carrito por su id
+        vaciarCarrito, // funcion para vaciar el carrito completo
+    }),
+    [items, totalItems, total, loading, hydrate, agregarProducto, cambiarCantidad, eliminarItem, vaciarCarrito]
+);
+
+return <CarritoContext.Provider value={value}>
+        {children} </CarritoContext.Provider>
 }
+
+   /**
+         * HOOK 
+         * simplifica el acceso al contexto y lanza un error descriptivo si se usa fuera del arbol de CarritoProvider
+         */
+
+        export function useCarrito() {
+            const context = useContext(CarritoContext);
+            if (!context) {
+                throw new Error ('useCarrito debe usarse dentro de un CarritoProvider');
+            }
+
+        return context; 
+    }
+
 
